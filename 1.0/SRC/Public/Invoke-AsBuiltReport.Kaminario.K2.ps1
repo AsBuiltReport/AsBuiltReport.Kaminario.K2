@@ -1,4 +1,4 @@
-
+﻿
 function Invoke-AsBuiltReport.Kaminario.K2 {
     <#
     .SYNOPSIS
@@ -29,11 +29,10 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
         & "$PSScriptRoot\..\..\AsBuiltReport.Kaminario.K2.Style.ps1"
     }
 
-    $K2Arrays = $Target.split(",")
     foreach ($K2 in $K2Arrays) {
         Try {
             $K2User = ($Credential).Username
-            $K2Password = ($Credential.GetNetworkCredential()).password 
+            $K2Password = ($Credential.GetNetworkCredential()).password
             $ConnectedK2 = Connect-k2array -k2array $K2 -Username $K2User -Password $K2Password
         } Catch {
             Write-Verbose "Unable to connect to the $K2 Array"
@@ -43,25 +42,25 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                         $Array = get-k2state
                         $Volumes = Get-k2volume
                         $VolumeGroups = Get-k2volumegroup
-                        $SystemCapacity = Get-K2SystemCapacity 
+                        $SystemCapacity = Get-K2SystemCapacity
                         $Snaps = Get-k2snapshot
                         $Hosts = Get-K2Host | Sort-Object name
                         $HostGroups = Get-K2HostGroup | Sort-Object name
-                        $RetentionPolicy = Get-K2RetentionPolicy | Sort-Object name 
-                        $StandaloneHosts = $Hosts | where {$_.host_group -eq $null} 
+                        $RetentionPolicy = Get-K2RetentionPolicy | Sort-Object name
+                        $StandaloneHosts = $Hosts | Where-Object {$null -eq $_.host_group}
                         $NTP = Get-K2NTPServer
                         try{
-                        $ReplicationArrays = Get-K2ReplicationPeer | Sort-Object name 
+                        $ReplicationArrays = Get-K2ReplicationPeer | Sort-Object name
                         } Catch {
                             Write-Verbose "WARNING: Could not find peer K2 array"
                         }
                         Try{
-                            $ReplicationVolumes = Get-K2ReplicationPeerVolume | Sort-Object name 
+                            $ReplicationVolumes = Get-K2ReplicationPeerVolume | Sort-Object name
                         } Catch {
                             Write-Verbose "WARNING: Could not find peer K2 Volume(s)"
                         }
-                        
-                        
+
+
 
                 Section -Style Heading1 $Array.system_name {
                     Section -Style Heading2 'System Summary' {
@@ -109,7 +108,7 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                         }
                         $SnapshotSummary | Table -Name 'Snapshot Summary'
                     }#End Section Heading3 'Snapshot Summary'
-                
+
                     Section -Style Heading3 'Hosts' {
                         Paragraph "The following section provides a summary of the Hosts in $($Array.system_name)."
                         BlankLine
@@ -119,9 +118,9 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                                 'Type' = $Host.type
                             }
                         }
-                        $HostSummary | Table -Name 'Hosts' 
+                        $HostSummary | Table -Name 'Hosts'
                     }#End Section Heading3 'Hosts'
-                 
+
                     Section -Style Heading3 'Host Groups' {
                         Paragraph "The following section provides a summary of the Host Groups in $($Array.system_name)."
                         BlankLine
@@ -131,9 +130,9 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                                 'Allow Different Host Types' = $HG.allow_different_host_types
                             }
                         }
-                        $HostgroupSummary | Table -Name 'Host Groups' #-ColumnWidths 50, 50 
-                    
+                        $HostgroupSummary | Table -Name 'Host Groups' #-ColumnWidths 50, 50
                     }#End Section Heading3 'Host Groups'
+
                     Section -Style Heading2 'Volume Summary' {
                         Section -Style Heading3 'Volumes' {
                             $VolumeSummary = foreach ($Vol in $Volumes) {
@@ -144,10 +143,10 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                                     'Is DeDupe' = $Vol.is_dedup
                                     'VMWare Support' = $Vol.vmware_support
                                 }
-                            } 
+                            }
                             $VolumeSummary | Table -Name 'Volumes'
                         }   #End Section Heading3 'Volumes'
-                    
+
                         Section -Style Heading3 'Volume Groups' {
                             $VolumeGroupSummary = foreach ($VG in $VolumeGroups) {
                                 [PSCustomObject]@{
@@ -156,11 +155,10 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                                     'Size' = "$([math]::Round(($VG.size) / 1GB, 2)) GB"
                                     'Is DeDupe' = $VG.is_dedup
                                 }
-                            } 
+                            }
                             $VolumeGroupSummary | Table -Name 'Volume Groups'
                         }   #End Section Heading3 'Volume Group Summary'
 
-                        
             }#End Section Heading2 'Volume Summary'
                     Section -Style Heading2 'Protection Summary' {
                         Section -Style Heading3 'Retention Polices' {
@@ -175,6 +173,7 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                             }
                             $RetentionPolicySummary | Table -Name 'Retention Policies'
                         }#End Section Heading3 'Retention Policies'
+                        
                         If ($ReplicationArrays){
                             Section -Style Heading3 'Replication Connected Arrays' {
                                 $ConnectedArraySymmary = foreach ($RepArray in $ReplicationArrays){
@@ -197,8 +196,7 @@ function Invoke-AsBuiltReport.Kaminario.K2 {
                                 $ReplicationVolSummary | Table -Name 'Replicated Volumes'
                             }#End Section 'Replicated Volumes'
                         }#End If Replication Volumes
-
-                        }#End Section Heading2 'Protection Summary'
+                    }#End Section Heading2 'Protection Summary'
                 } #End Section Heading1 '$Array.system_name
             } #End ConnectedK2
             $Null = Disconnect-K2Array -ErrorAction SilentlyContinue
