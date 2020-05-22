@@ -49,6 +49,7 @@
             $StandaloneHosts = $Hosts | Where-Object { $null -eq $_.host_group }
             $NTP = Get-K2NTPServer
             $RestURI = "https://$K2/api/v2"
+
             try {
                 $ReplicationArrays = Get-K2ReplicationPeer | Sort-Object name
             } Catch {
@@ -168,6 +169,7 @@
                     }#end Else
                 } #End setion Heading3 'Static Summary'   
                 } #End Section Heading2 'Connectivity Summary'
+                } #End Section Heading2 'System Summary'
 
                 Section -Style Heading3 'Snapshot Summary' {
                     Paragraph "The following section provides a summary of the Snapshots in $($Array.system_name)."
