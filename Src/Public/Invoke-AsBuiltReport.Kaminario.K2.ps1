@@ -28,7 +28,7 @@
         & "$PSScriptRoot\..\..\AsBuiltReport.Kaminario.K2.Style.ps1"
     }
 
-    foreach ($K2 in $K2Arrays) {
+    foreach ($K2 in $Target) {
         Try {
             $K2User = ($Credential).Username
             $K2Password = ($Credential.GetNetworkCredential()).password
@@ -48,6 +48,8 @@
             $RetentionPolicy = Get-K2RetentionPolicy | Sort-Object name
             $StandaloneHosts = $Hosts | Where-Object { $null -eq $_.host_group }
             $NTP = Get-K2NTPServer
+            $RestURI = "https://$K2/api/v2"
+
             try {
                 $ReplicationArrays = Get-K2ReplicationPeer | Sort-Object name
             } Catch {
@@ -61,6 +63,7 @@
 
             Section -Style Heading1 $Array.system_name {
                 Section -Style Heading2 'System Summary' {
+                Section -Style Heading2 'Array Summary' {
                     Paragraph "The following section provides a summary of the array configuration for $($Array.system_name)."
                     BlankLine
                     $ArraySummary = [PSCustomObject] @{
@@ -77,6 +80,20 @@
                     }
                     $ArraySummary | Table -Name 'Array Summary'
                 } #End Array Summary
+                Section -Style Heading2 'NDU Summary' {
+                    Paragraph "The following section provides a summary of the NDU Summary for $($Array.system_name)."
+                    BlankLine
+                    $ndu = (Invoke-RestMethod -Method Get -Uri "$RestURI/system/ndu" -Credential $Credential ).hits
+                    $NDUSummary = [PSCustomObject] @{
+                        'Background FW State' = $ndu.background_fw_state
+                        'NDU State' = $ndu.ndu_state
+                        'New Version' = $ndu.new_version
+                        'Old Version' = $ndu.old_version
+                        'Operation' = $ndu.operation
+                    }
+                    $NDUSummary | Table -Name 'NDU Summary'
+                } #End NDU Summary
+            }#End System Summary
 
                 Section -Style Heading2 'Storage Summary' {
                     Paragraph "The following section provides a summary of the array storage for $($Array.system_name)."
@@ -89,6 +106,69 @@
                         'State' = $SystemCapacity.state
                     }
                     $ArrayStorageSummary | Table -Name 'Array Storage Summary'
+                } #End Section Heading2 'Storage Summary'
+
+                Section -Style Heading2 'Connectivity Summary'{
+                    Paragraph "The following section provides a summary of connectivity information for $($Array.system_name)"
+                    Section -Style Heading3 'IP Summary' {
+                        Paragraph "The following section provides a summary of IP information for $($Array.system_name)"
+                        BlankLine
+                        $netIPs = (Invoke-RestMethod -Method Get -Uri "$RestURI/system/net_ips" -Credential $Credential )
+                        $IPSummary = foreach ($netIP in ($netIPs).hits){
+                                $netVlanURI =$RestURI + ($netIP.net_vlan).ref
+                                $sysVlanURI=$RestURI + ($netVlan.vlan).ref
+                                $netVlan = (Invoke-RestMethod -Method Get -Uri $netVlanURI -Credential $Credential )
+                                $sysVlan = (Invoke-RestMethod -Method Get -Uri $sysVlanURI -Credential $Credential )
+                                [PSCustomObject] @{
+                                    'Name' = $netVlan.name
+                                    'IP Address' = $netIP.ip_address
+                                    'Network Mask' = $netIP.network_mask
+                                    'MTU' = $sysVlan.mtu
+                                    'VLAN' = $sysVlan.name
+                                    'VLAN Tag' = $sysVlan.Tag
+                                }#End netIP PSCustomObject
+                        }#end Foreach netIP
+                        $IPSummary | Table -Name "IPs"
+                }#End Section Heading3 'IP Summary'
+
+                Section -Style Heading3 'Network Port Summary'{
+                    Paragraph "The following section provides a summary of Network Port information for $($Array.system_name)"
+                    BlankLine
+                    $netPorts = (invoke-restmethod -Method Get  -Uri "$RestURI/system/net_ports" -Credential $Credential )
+                        $NetPortSummary = foreach ($port in ($netPorts).hits){
+                            $netServerURI = $RestURI + ($port.net_vlan).ref
+                            $netServer = (invoke-restmethod -Method Get  -Uri $netServerURI -Credential $Credential )
+                            [PSCustomObject] @{
+                                    'Name' = $port.name
+                                    'MAC Address' = $port.mac_addr
+                                    'Port Type' = $port.port_type
+                                    'MTU' = $port.mtu
+                                    'Flow Control' = $port.flow_control
+                                    'Server' = $netServer.name
+                            }#End PSCustomObject
+                        }#End foreach interface
+                        $NetPortSummary | Table -Name "Network Port Summary"
+                } #End setion Heading3 'Network Port Summary'   
+                
+                Section -Style Heading3 'Static Route Summary'{
+                    Paragraph "The following section provides a summary of Static Routes for $($Array.system_name)"
+                    BlankLine
+                    $staticRoutes = (Invoke-restmethod -Method Get  -Uri "$RestURI/static_routes" -Credential $Credential )
+                    if(($staticRoutes).hits){
+                    $StaticRouteSummary = foreach ($route in ($staticRoutes).hits){
+                        [PSCustomObject]@{
+                            'Destination Subnet IP' = $route.destination_subnet_ip
+                            'Destination Subnet Mask' = $route.destination_subnet_mask
+                            'Gateway IP' = $route.gateway_ip
+                            'KNode' = $route.knode
+                        }#End PSCustomObject
+
+                    }#End static routes foreach
+                    $StaticRouteSummary | Table -Name "Static Routes"
+                }else{Write-Verbose "No Static Routes Defined"
+                    }#end Else
+                } #End setion Heading3 'Static Summary'   
+                } #End Section Heading2 'Connectivity Summary'
                 } #End Section Heading2 'System Summary'
 
                 Section -Style Heading3 'Snapshot Summary' {
