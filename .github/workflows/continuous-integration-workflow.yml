@@ -1,0 +1,17 @@
+name: CI
+on: [pull_request]
+jobs:
+  lint:
+    name: PSScriptAnalyzer checks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: lint
+      uses: devblackops/github-action-psscriptanalyzer@v2.1.1
+      with:
+        rootPath: MyModule
+        sendComment: true
+        repoToken: ${{ secrets.GITHUB_TOKEN }}
+        failOnErrors: true
+        failOnWarnings: true
+        failOnInfos: false
